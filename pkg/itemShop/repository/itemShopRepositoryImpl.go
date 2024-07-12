@@ -1,28 +1,28 @@
 package repository
 
 import (
+	"github/ariifysp/workshop-go/databases"
 	"github/ariifysp/workshop-go/entities"
 
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 
 	_itemListingException "github/ariifysp/workshop-go/pkg/itemShop/exception"
 	_itemShopModel "github/ariifysp/workshop-go/pkg/itemShop/model"
 )
 
 type itemShopRepositoryImpl struct {
-	db     *gorm.DB
+	db     databases.Database
 	logger echo.Logger
 }
 
-func NewItemShopRepositoryImpl(db *gorm.DB, logger echo.Logger) ItemShopRepository {
+func NewItemShopRepositoryImpl(db databases.Database, logger echo.Logger) ItemShopRepository {
 	return &itemShopRepositoryImpl{db, logger}
 }
 
 func (r *itemShopRepositoryImpl) Listing(itemFilter *_itemShopModel.ItemFilter) ([]*entities.Item, error) {
 	itemList := make([]*entities.Item, 0)
 
-	query := r.db.Model(&entities.Item{}).Where("is_deleted = ?", false)
+	query := r.db.Connect().Model(&entities.Item{}).Where("is_deleted = ?", false)
 
 	if itemFilter.Name != "" {
 		query = query.Where("name ilike ?", "%"+itemFilter.Name+"%")
@@ -43,7 +43,7 @@ func (r *itemShopRepositoryImpl) Listing(itemFilter *_itemShopModel.ItemFilter) 
 }
 
 func (r *itemShopRepositoryImpl) Counting(itemFilter *_itemShopModel.ItemFilter) (int64, error) {
-	query := r.db.Model(&entities.Item{}).Where("is_deleted = ?", false)
+	query := r.db.Connect().Model(&entities.Item{}).Where("is_deleted = ?", false)
 
 	if itemFilter.Name != "" {
 		query = query.Where("name ilike ?", "%"+itemFilter.Name+"%")
@@ -60,4 +60,15 @@ func (r *itemShopRepositoryImpl) Counting(itemFilter *_itemShopModel.ItemFilter)
 	}
 
 	return count, nil
+}
+
+func (r *itemShopRepositoryImpl) FindByID(itemID uint64) (*entities.Item, error) {
+	item := new(entities.Item)
+
+	if err := r.db.Connect().First(item, itemID).Error; err != nil {
+		r.logger.Errorf("Failed to find item by ID: %s", err.Error())
+		return nil, &_itemListingException.ItemNotFound{}
+	}
+
+	return item, nil
 }
